@@ -60,11 +60,12 @@ def main():
 
     existing_post_ids = set()
     if input_file:
-        print(f"Reading existing post IDs from {input_file}...")
+        print(f"Reading existing post IDs from {input_file}...", end='')
         try:
             with open(input_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 existing_post_ids = {item["post_id"] for item in data if "post_id" in item}
+            print(f'found {len(existing_post_ids)} existing products')
         except Exception as e:
             print(f"Error reading input file: {e}")
             return
@@ -91,15 +92,7 @@ def main():
 
     print(f'Found {len(all_products)} total products')
 
-    # Save all products to a JSON file
-    output_all_products_file = input_file if input_file else "all_products.json"
-    print(f"Saving all products to {output_all_products_file}...")
-    with open(output_all_products_file, "w", encoding="utf-8") as f:
-        json.dump(all_products, f, ensure_ascii=False, indent=4)
-
     if input_file:
-
-        # Generate HTML output for new products
         try:
             timestamp = datetime.fromtimestamp(os.path.getmtime(input_file)).strftime('%Y-%m-%d %H:%M:%S')
             title = f"New HamEstate Products Since {timestamp}"
@@ -108,9 +101,18 @@ def main():
             title = "New HamEstate Products"
 
         if not len(new_products):
-            print('No new products found')
+            print(f'No new products found since input file timestamp at {timestamp}. Not writing html or json.')
             return
 
+    # Save all products to a JSON file
+    output_all_products_file = input_file if input_file else "all_products.json"
+    print(f"Saving all products to {output_all_products_file}...")
+    with open(output_all_products_file, "w", encoding="utf-8") as f:
+        json.dump(all_products, f, ensure_ascii=False, indent=4)
+
+
+    if input_file:
+        print(f'Found {len(new_products)} new products since input file timestamp at {timestamp}')
         print("Generating HTML output for new products...")
         exclude_text = f'excluding categories ({", ".join(skip_categories)})'
         html_output = f"""<html>
