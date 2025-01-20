@@ -2,7 +2,7 @@
 Scraper for HamEstate's product store
 
 # Setup
-1. Install Python if your platform of choice doesn't already have it. You'll also need Beatiful Soup, install with `pip install bs4`.
+1. Install Python if your platform of choice doesn't already have it. You'll also need Requests and Beatiful Soup, install with `pip install requests bs4`.
 
 2. Edit the source and add entries to skip_categories for those you wish to skip. The phrases will match subset, case-insensitive. The default is books.
 
