@@ -27,28 +27,63 @@ def get_categories(base_url):
 
 # Function to scrape products from a category
 def get_products(category_url):
-    #print(f"Fetching products for category URL: {category_url}")
-    response = requests.get(category_url)
-    soup = BeautifulSoup(response.content, "html.parser")
-    products = []
-    for product in soup.select(".product"):  # Adjust selector as needed
-        try:
-            title = product.select_one(".woocommerce-loop-product__title").text.strip()
-        except AttributeError:
-            title = "unknown"
-        try:
-            price = product.select_one(".price").text.strip()
-        except AttributeError:
-            price = "unknown"
-        try:
-            link = product.select_one("a")["href"]
-        except (AttributeError, TypeError):
-            link = "unknown"
-        try:
-            post_id = next(cls.split('-')[1] for cls in product["class"] if cls.startswith("post-"))
-        except (AttributeError, StopIteration):
-            post_id = "unknown"
-        products.append({"title": title, "price": price, "link": link, "post_id": post_id})
+    def _get_products_page(url, page_num=1, products_accum=None):
+        if products_accum is None:
+            products_accum = []
+        # For first page, use the original url; for subsequent pages, insert /page/X/ before query params
+        if page_num == 1:
+            page_url = url
+        else:
+            if '?' in url:
+                base, query = url.split('?', 1)
+                page_url = f"{base}/page/{page_num}/?{query}"
+            else:
+                page_url = f"{url}/page/{page_num}/"
+        response = requests.get(page_url)
+        soup = BeautifulSoup(response.content, "html.parser")
+        # Find total count on first page only
+        if page_num == 1:
+            result_count_tag = soup.find("p", class_="woocommerce-result-count")
+            total_count = None
+            if result_count_tag:
+                import re
+                match = re.search(r'of (\d+) results', result_count_tag.text)
+                if match:
+                    total_count = int(match.group(1))
+        else:
+            total_count = None
+        # Parse products on this page
+        page_products = []
+        for product in soup.select(".product"):
+            try:
+                title = product.select_one(".woocommerce-loop-product__title").text.strip()
+            except AttributeError:
+                title = "unknown"
+            try:
+                price = product.select_one(".price").text.strip()
+            except AttributeError:
+                price = "unknown"
+            try:
+                link = product.select_one("a")["href"]
+            except (AttributeError, TypeError):
+                link = "unknown"
+            try:
+                post_id = next(cls.split('-')[1] for cls in product["class"] if cls.startswith("post-"))
+            except (AttributeError, StopIteration):
+                post_id = "unknown"
+            page_products.append({"title": title, "price": price, "link": link, "post_id": post_id})
+        products_accum.extend(page_products)
+        # If we know the total count and haven't fetched all, recurse for next page
+        if total_count is not None:
+            if len(products_accum) < total_count:
+                return _get_products_page(url, page_num + 1, products_accum)
+        else:
+            # If we got 100 products, there might be more, so try next page
+            if len(page_products) == 100:
+                return _get_products_page(url, page_num + 1, products_accum)
+        return products_accum
+
+    products = _get_products_page(category_url)
     print(f"Found {len(products)} products.")
     return products
 
